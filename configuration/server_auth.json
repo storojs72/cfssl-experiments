@@ -1,0 +1,32 @@
+{
+    "request": {
+		"CN": "test server",
+		"hosts": ["127.0.0.1"],
+		"key": {
+			"algo": "rsa",
+			"size": 2048
+		}
+	},
+    "profiles": {
+		"paths": {
+			"private_key": "transport/example/maserver/creds/automatic/server-key.pem",
+			"certificate": "transport/example/maserver/creds/automatic/server.pem"
+		},
+		"cfssl": {
+			"profile": "server",
+	    	"remote": "http://178.62.65.214:8888",
+	    	"auth-key": "000102030405060708090a0b0c0d0e0f",
+			"auth-type": "standard"
+		}
+    },
+	"roots": [{
+		"type": "system"
+	}],
+	"client_roots": [{
+		"type": "cfssl",
+		"metadata": {
+			"host": "http://178.62.65.214:8888",
+			"profile": "client"
+		}
+	}]
+}

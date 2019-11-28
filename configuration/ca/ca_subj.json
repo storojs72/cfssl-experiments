@@ -1,0 +1,16 @@
+{
+  "CN": "Intermediate CA",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C":  "UA",
+      "L":  "Kiev",
+      "O":  "CossackLabs",
+      "OU": "CFSSL experiments",
+      "ST": "Kiev"
+    }
+  ]
+}
