@@ -3,8 +3,13 @@
 ![image](https://raw.githubusercontent.com/storojs72/cfssl-experiments/master/miscellaneous/cfssl-private-ca.png)
 
 This is a variant of CFSSL remote service deployment with a single Dockerfile.
+CFSSL is deployed with a local PostgreSQL database for storing issued certificates.
+With a help of CFSSL's API (auth-sign endpoint) it is possible to organize mutually 
+authenticated and encrypted communications between services.   
+
 No need to install golang or deal with cfssl source code.
-Tested on Digital Ocean droplet with Ubuntu 18.04 LTS operating system.
+Tested on Digital Ocean droplet with Ubuntu 18.04 LTS operating system with 
+two go applications (simple server and client) from cfssl github repository (https://github.com/cloudflare/cfssl/tree/master/transport/example) 
 
 
 ##### On remote host for CFSSL
