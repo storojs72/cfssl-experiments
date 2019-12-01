@@ -1,6 +1,6 @@
 # cfssl-experiments
 
-![image](https://github.com/cossacklabs/acra-engineering-demo/blob/storojs72/T1230_do_blogpost/do-blogpost/version1/screenshots/11.png)
+![image](https://raw.githubusercontent.com/storojs72/cfssl-experiments/master/miscellaneous/cfssl-private-ca.png)
 
 This is a variant of CFSSL remote service deployment with a single Dockerfile.
 No need to install golang or deal with cfssl source code.
