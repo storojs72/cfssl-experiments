@@ -1,71 +1,45 @@
 # cfssl-experiments
 
-# Certificate Authority
+![image](https://github.com/cossacklabs/acra-engineering-demo/blob/storojs72/T1230_do_blogpost/do-blogpost/version1/screenshots/11.png)
 
-- Typical initialization of new CA:
-
-cfssl gencert -initca configuration/root-ca.json | cfssljson -bare ca
-
-- Typical run CA server:
-
-cfssl serve -ca-key ca-key.pem -ca ca.pem -config configuration/config.json -address 165.227.231.121 -disable revoke,gencrl,bundle,newkey,scaninfo,init_ca,certinfo,scan,crl,ocspsign,authsign,sign
-
-- Typical run OCSP server:
-
-cfssl ocspserve -port 8889 -address 165.227.231.121 -db-config configuration/postgres-config.json
+This is a variant of CFSSL remote service deployment with a single Dockerfile.
+No need to install golang or deal with cfssl source code.
+Tested on Digital Ocean droplet with Ubuntu 18.04 LTS operating system.
 
 
-# Client
+##### On remote host for CFSSL
 
-- Typical request of certificate (API) - get csr, key, crt from remote:
-
-curl -d @request.conf 165.227.231.121:8888/api/v1/cfssl/newcert | cfssljson
-
-- Typical local key generation (generates csr, key):
-
-cfssl genkey config/config-client-csr.json | cfssljson -bare client
-
-- Typical signing csr by remote CA - get crt from remote:
-
-cfssl sign -remote 165.227.231.121 client.csr | cfssljson -bare client
-
-
-
-
-- browse certificate details:
-
-openssl x509 -in client.pem -text -noout
-
-- browse csr details:
-
-openssl req -in client.pem -text -noout
-
-- check ocsp:
-
-openssl ocsp -issuer intermediate-ca.pem -cert client.pem -text -url http://165.227.231.121:8889
-
-
-### DOCKER
-
-##### ON CFSSL REMOTE HOST
-
-
-
-install docker
-
-1) deploy postgres db for certificates storing
-- docker pull postgres
-- docker run -p 5432:5432 -e POSTGRES_USER=cfssl -e POSTGRES_PASSWORD=cfssl --name postgres -d postgres:latest
-
-1) build cfssl image
-- docker build -t cfssl:experiments .
-
-2) migrate cfssl to postgres
-- docker run --network host --entrypoint goose cfssl:experiments -path certdb/pg/ -env cfssl-experiments up
-
-2) generate certificates:
-- docker run --rm --name cfssl -v "$(pwd)"/cfssl-experiments/:/cfssl cfssl:experiments gencert -loglevel=2 -initca /cfssl/configuration/ca/ca_subj.json > cfssl-experiments/ca.json
-- docker run --rm --name cfssl -v "$(pwd)"/cfssl-experiments/:/cfssl --entrypoint cfssljson cfssl:experiments -f /cfssl/ca.json -bare /cfssl/ca
-
-3) run remote cfssl service
-- docker run -d --name cfssl --network host -v "$(pwd)"/cfssl-experiments/:/cfssl cfssl:experiments serve -ca /cfssl/ca.pem -ca-key /cfssl/ca-key.pem -config /cfssl/configuration/ca/ca_auth.json -address 178.62.65.214 -db-config /cfssl/configuration/ca/postgres.json
+1) Install docker (if not installed):
+```
+apt update
+apt install docker.io
+systemctl start docker
+systemctl enable docker
+```
+2) Clone this repository:
+```
+git clone https://github.com/storojs72/cfssl-experiments
+cd cfssl-experiments
+```
+3) Set postgres database container for accounting issued certificates:
+```
+docker pull postgres:latest
+docker run -p 5432:5432 -e POSTGRES_USER=cfssl -e POSTGRES_PASSWORD=cfssl --name postgres -d postgres:latest
+```
+4) Build CFSSL image:
+```
+docker build -t cfssl:experiments .
+```
+5) Migrate CFSSL database to postgres container:
+```
+docker run --rm --network host --entrypoint goose cfssl:experiments -path certdb/pg/ -env cfssl-experiments up
+```
+6) Generace self-signed certificate for CFSSL service:
+```
+docker run --rm --name cfssl -v "$(pwd)":/cfssl cfssl:experiments gencert -loglevel=2 -initca /cfssl/configuration/ca/ca_subj.json > ca.json
+docker run --rm --name cfssl -v "$(pwd)":/cfssl --entrypoint cfssljson cfssl:experiments -f /cfssl/ca.json -bare /cfssl/ca
+```
+7) Run CFSSL service:
+```
+docker run -d --name cfssl --network host -v "$(pwd)"/cfssl-experiments/:/cfssl cfssl:experiments serve -ca /cfssl/ca.pem -ca-key /cfssl/ca-key.pem -config /cfssl/configuration/ca/ca_auth.json -address {YOUR CFSSL HOST IP} -db-config /cfssl/configuration/ca/postgres.json
+```

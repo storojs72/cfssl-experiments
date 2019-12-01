@@ -1,4 +1,4 @@
 {
   "driver":"postgres",
-  "data_source":"postgres://cfssl:cfssl@localhost/certdb_development?sslmode=disable"
+  "data_source":"postgres://cfssl:cfssl@localhost/cfssl?sslmode=disable"
 }
