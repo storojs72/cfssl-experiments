@@ -52,8 +52,8 @@ docker run -d --name cfssl --network host -v "$(pwd)"/cfssl-experiments/:/cfssl 
 
 ##### On own laptop for hardware-baked Root CA
 
-This is an example of building Root CA with strengthen security on your laptop. It was tested with Luna SafeNet 5110 tokens.
-It is assumed that you have your token installed (a PKCS#11 vendor library is presented: `libeTPkcs11.so`)
+This is an example of building Root CA with strengthen security on your laptop. It was tested with SafeNet 5110 tokens.
+It is assumed that you have your token installed (a PKCS#11 vendor library is presented: `libeTPkcs11.so` - for SafeNet 5110. Other vendors provide own libraries as PKCS#11 implementations)
 and token is initialized (SO/User pin are set)
 
 1) Clone original CFSSL repository:
@@ -63,11 +63,13 @@ git clone https://github.com/cloudflare/cfssl && cd cfssl
 git checkout ebe01990a23a309186790f4f8402eec68028f148
 ```
 
-2) Apply patches that add ability to CFSSL to work with PKCS#11 tokens (tamper-resistant hardware key storages):
+2) Apply patches that add ability to CFSSL to work with PKCS#11 tokens (tamper-resistant hardware key storages) and refresh dependencies:
 
 ```
 git apply gencert_pkcs11_1.patch
 git apply gencert_pkcs11_2.patch
+go mod tidy
+go mod vendor
 ```
 
 3) Install cfssl as usually:
@@ -96,3 +98,9 @@ The result should be similar to:
 2019/12/10 15:00:45 [INFO] signed certificate with serial number 465284377044240070058142226389047897191304820238
 {"cert":"-----BEGIN CERTIFICATE-----\nMIICqTCCAhKgAwIBAgIUUYASs9p6S651wOTV+zWcMyOqdg4wDQYJKoZIhvcNAQEF\nBQAwbzELMAkGA1UEBhMCVUExDTALBgNVBAgTBEtpZXYxDTALBgNVBAcTBEtpZXYx\nFDASBgNVBAoTC0Nvc3NhY2tMYWJzMRowGAYDVQQLExFDRlNTTCBleHBlcmltZW50\nczEQMA4GA1UEAxMHUm9vdCBDQTAeFw0xOTEyMTAxMjU2MDBaFw0yNDEyMDgxMjU2\nMDBaMG8xCzAJBgNVBAYTAlVBMQ0wCwYDVQQIEwRLaWV2MQ0wCwYDVQQHEwRLaWV2\nMRQwEgYDVQQKEwtDb3NzYWNrTGFiczEaMBgGA1UECxMRQ0ZTU0wgZXhwZXJpbWVu\ndHMxEDAOBgNVBAMTB1Jvb3QgQ0EwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGB\nALAIL8Lm/MXI3ByKjy2sUBz0mvODGtoUKycvAkOez0+mwq0icw6TAPck2yctnKFa\n4ldesWolgYEo+5Y1M2XhpU8LCVW+AA/gCrPyBQ71r2K25H1FUcWDccHfy9N00AL8\n1Reu8BqCg0xGAQk3nFNsuyiRFK1d89TlP2YVnw0J86cPAgMBAAGjQjBAMA4GA1Ud\nDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRpL2d6r25Tau3U\nS9xsleO8zV+x0jANBgkqhkiG9w0BAQUFAAOBgQCI/jkxVdccfyxnMTimm0SUIYSA\n0LVvjobzjf7AL+/dOjtktUvp86yJDIQzhjlS1bcSBfqrH1YBImBwczEjYMN0SYhJ\nSmtjWH6Z6qNnz0XXTQDUAzX/CgXOXxrofBA3L4VF3/aVTbY5u1haZSyOsUcA8XNI\n8sHO/GiKDcYITHaGPQ==\n-----END CERTIFICATE-----\n","csr":"-----BEGIN CERTIFICATE REQUEST-----\nMIIBrzCCARgCAQAwbzELMAkGA1UEBhMCVUExDTALBgNVBAgTBEtpZXYxDTALBgNV\nBAcTBEtpZXYxFDASBgNVBAoTC0Nvc3NhY2tMYWJzMRowGAYDVQQLExFDRlNTTCBl\neHBlcmltZW50czEQMA4GA1UEAxMHUm9vdCBDQTCBnzANBgkqhkiG9w0BAQEFAAOB\njQAwgYkCgYEAsAgvwub8xcjcHIqPLaxQHPSa84Ma2hQrJy8CQ57PT6bCrSJzDpMA\n9yTbJy2coVriV16xaiWBgSj7ljUzZeGlTwsJVb4AD+AKs/IFDvWvYrbkfUVRxYNx\nwd/L03TQAvzVF67wGoKDTEYBCTecU2y7KJEUrV3z1OU/ZhWfDQnzpw8CAwEAAaAA\nMA0GCSqGSIb3DQEBBQUAA4GBAGeR59vwKZOeccgxQCG0KKjAHwjLUjapnWgSDtmU\nk2NaQi6IqxJQKzT1USzoQJ2mBKaECfIWZKgFLD4QJj87r0qghQZY1eYU/1Od9cWg\nDBGqUuAUnFxb+aJeN/qobWjMsLD32ojeDfdOg+P3sgERnKuKCXKR3e83DIFep136\nubRh\n-----END CERTIFICATE REQUEST-----\n","key":"hardware-baked private key"}
 ```
+
+Additional resources:
+
+1) OpenSC and pkcs11-tool (https://github.com/OpenSC/OpenSC)
+2) CFSSL community discussion on PKCS#11 (1) (https://github.com/cloudflare/cfssl/issues/563)
+3) CFSSL community discussion on PKCS#11 (2) (https://github.com/cloudflare/cfssl/issues/247)
