@@ -1,0 +1,133 @@
+diff --git a/revoke/revoke.go b/revoke/revoke.go
+index 467dfe9..07d9a19 100644
+--- a/revoke/revoke.go
++++ b/revoke/revoke.go
+@@ -9,19 +9,23 @@ import (
+ 	"crypto/x509"
+ 	"crypto/x509/pkix"
+ 	"encoding/base64"
++	"encoding/json"
+ 	"encoding/pem"
+ 	"errors"
+ 	"fmt"
++	"github.com/cloudflare/cfssl/api"
++	"github.com/cloudflare/cfssl/helpers"
++	"github.com/cloudflare/cfssl/info"
+ 	"io"
+ 	"io/ioutil"
+ 	"net/http"
+ 	neturl "net/url"
++	"strings"
+ 	"sync"
+ 	"time"
+ 
+ 	"golang.org/x/crypto/ocsp"
+ 
+-	"github.com/cloudflare/cfssl/helpers"
+ 	"github.com/cloudflare/cfssl/log"
+ )
+ 
+@@ -93,7 +97,6 @@ func revCheck(cert *x509.Certificate) (revoked, ok bool, err error) {
+ 		log.Info("certificate is revoked via OCSP")
+ 		return true, true, err
+ 	}
+-
+ 	return false, true, nil
+ }
+ 
+@@ -125,9 +128,7 @@ func getIssuer(cert *x509.Certificate) *x509.Certificate {
+ 		}
+ 		break
+ 	}
+-
+ 	return issuer
+-
+ }
+ 
+ // check a cert against a specific CRL. Returns the same bool pair
+@@ -205,22 +206,25 @@ func VerifyCertificateError(cert *x509.Certificate) (revoked, ok bool, err error
+ }
+ 
+ func fetchRemote(url string) (*x509.Certificate, error) {
+-	resp, err := http.Get(url)
++	cfsslInfoResponse := new(api.Response)
++	cfsslInfoResponse.Result = new(info.Resp)
++	body := strings.NewReader(`{}`)
++	r, err := http.Post(url, "application/json", body)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	defer r.Body.Close()
+ 
+-	in, err := remoteRead(resp.Body)
++	err = json.NewDecoder(r.Body).Decode(cfsslInfoResponse)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	resp.Body.Close()
+ 
++	in := []byte(cfsslInfoResponse.Result.(*info.Resp).Certificate)
+ 	p, _ := pem.Decode(in)
+ 	if p != nil {
+ 		return helpers.ParseCertificatePEM(in)
+ 	}
+-
+ 	return x509.ParseCertificate(in)
+ }
+ 
+@@ -230,41 +234,34 @@ var ocspOpts = ocsp.RequestOptions{
+ 
+ func certIsRevokedOCSP(leaf *x509.Certificate, strict bool) (revoked, ok bool, e error) {
+ 	var err error
+-
+ 	ocspURLs := leaf.OCSPServer
+ 	if len(ocspURLs) == 0 {
+ 		// OCSP not enabled for this certificate.
++		log.Info("OCSP not enabled for this certificate: ", leaf.Subject.CommonName)
+ 		return false, true, nil
+ 	}
+-
+ 	issuer := getIssuer(leaf)
+-
+ 	if issuer == nil {
+ 		return false, false, nil
+ 	}
+-
+ 	ocspRequest, err := ocsp.CreateRequest(leaf, issuer, &ocspOpts)
+ 	if err != nil {
+ 		return revoked, ok, err
+ 	}
+-
+ 	for _, server := range ocspURLs {
+ 		resp, err := sendOCSPRequest(server, ocspRequest, leaf, issuer)
+ 		if err != nil {
++			log.Debug("OCSP error: ", err)
+ 			if strict {
+ 				return revoked, ok, err
+ 			}
+ 			continue
+ 		}
+-
+-		// There wasn't an error fetching the OCSP status.
+ 		ok = true
+-
+ 		if resp.Status != ocsp.Good {
+ 			// The certificate was revoked.
+ 			revoked = true
+ 		}
+-
+ 		return revoked, ok, err
+ 	}
+ 	return revoked, ok, err
+diff --git a/transport/client.go b/transport/client.go
+index 7e5f582..fe8b2c8 100644
+--- a/transport/client.go
++++ b/transport/client.go
+@@ -316,6 +316,7 @@ func Dial(address string, tr *Transport) (*tls.Conn, error) {
+ 			if (!tr.RevokeSoftFail && !ok) || revoked {
+ 				return nil, errors.New(errors.CertificateError, errors.VerifyFailed)
+ 			}
++			log.Debug(cert.Subject.CommonName, " OCSP check: is not revoked - OK")
+ 		}
+ 	}
+ 
