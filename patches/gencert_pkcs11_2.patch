@@ -144,7 +144,7 @@ index 0000000..39da95f
 +		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, tokenPersistent),
 +		pkcs11.NewAttribute(pkcs11.CKA_VERIFY, true),
 +		pkcs11.NewAttribute(pkcs11.CKA_PUBLIC_EXPONENT, []byte{1, 0, 0, 0, 1}),
-+		pkcs11.NewAttribute(pkcs11.CKA_MODULUS_BITS, 1024),
++		pkcs11.NewAttribute(pkcs11.CKA_MODULUS_BITS, 2048),
 +		pkcs11.NewAttribute(pkcs11.CKA_LABEL, conf.Token),
 +	}
 +	privateKeyTemplate := []*pkcs11.Attribute{

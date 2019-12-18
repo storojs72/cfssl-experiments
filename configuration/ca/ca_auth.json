@@ -1,6 +1,8 @@
 {
   "signing": {
     "default": {
+      "ocsp_url": "http://localhost:8889",
+      "issuer_urls": ["http://localhost:8888/api/v1/cfssl/info"],
       "expiry": "8760h"
     },
     "profiles": {
@@ -13,6 +15,10 @@
         "auth_key": "server",
         "expiry": "1h",
         "usages": ["signing", "key encipherment", "server auth"]
+      },
+      "ocsp": {
+        "usages": ["digital signature", "ocsp signing"],
+        "expiry": "26280h"
       }
     }
   },

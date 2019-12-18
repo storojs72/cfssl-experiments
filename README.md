@@ -49,6 +49,41 @@ docker run --rm --name cfssl -v "$(pwd)":/cfssl --entrypoint cfssljson cfssl:exp
 docker run -d --name cfssl --network host -v "$(pwd)"/cfssl-experiments/:/cfssl cfssl:experiments serve -ca /cfssl/ca.pem -ca-key /cfssl/ca-key.pem -config /cfssl/configuration/ca/ca_auth.json -address {YOUR CFSSL HOST IP} -db-config /cfssl/configuration/ca/postgres.json
 ```
 
+##### OCSP service
+
+
+Generate certificate for OCSP service:
+
+
+
+
+
+
+
+
+
+
+Apply a patch: `git apply patches/revoke_ocsp.patch`
+
+1) To run OCSP service:
+```
+cfssl ocspserve -db-config configuration/ca/postgres.json -port 8889 -address localhost -loglevel=0
+```
+
+2) Set of steps to revoke certificate:
+
+- get serial number and authority_key_id of the certificate (if you have access to .pem):
+```
+cfssl certinfo -cert transport/example/maserver/creds/automatic/server.pem
+```
+- perform revocation:
+```
+curl -d '{"serial": "643283264116739598736176251779770164305825300516 < in decimal!!! >","authority_key_id":"2edbc16d39d1d7d07262f1e18dd16bea29310340 < in hex!!! >","reason":"superseded"}' <address of your remote CFSSL>:8888/api/v1/cfssl/revoke
+```
+- refresh ocsp table:
+```
+cfssl ocsprefresh -loglevel 0 -db-config configuration/ca/postgres.json -ca root_ca.pem -responder ocsp.pem -responder-key ocsp-key.pem
+```
 
 ##### On own laptop for hardware-baked Root CA
 
@@ -66,8 +101,8 @@ git checkout ebe01990a23a309186790f4f8402eec68028f148
 2) Apply patches that add ability to CFSSL to work with PKCS#11 tokens (tamper-resistant hardware key storages) and refresh dependencies:
 
 ```
-git apply gencert_pkcs11_1.patch
-git apply gencert_pkcs11_2.patch
+git apply patches/gencert_pkcs11_1.patch
+git apply patches/gencert_pkcs11_2.patch
 go mod tidy
 go mod vendor
 ```

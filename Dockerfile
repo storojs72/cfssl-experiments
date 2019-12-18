@@ -10,7 +10,7 @@ RUN git clone https://github.com/cloudflare/cfssl_trust.git /etc/cfssl && \
 
 # set goose for migration purpose
 RUN go get bitbucket.org/liamstask/goose/cmd/goose
-COPY migration/pg/dbconf.yml /workdir/certdb/pg/
+COPY configuration/migration/pg/dbconf.yml /workdir/certdb/pg/dbconf.yml
 
 EXPOSE 8888
 
