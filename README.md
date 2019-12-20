@@ -42,35 +42,50 @@ docker run --rm --network host --entrypoint goose cfssl:experiments -path certdb
 6) Generate self-signed certificate for CFSSL service:
 ```
 docker run --rm --name cfssl -v "$(pwd)":/cfssl cfssl:experiments gencert -loglevel=2 -initca /cfssl/configuration/ca/ca_subj.json > ca.json
-docker run --rm --name cfssl -v "$(pwd)":/cfssl --entrypoint cfssljson cfssl:experiments -f /cfssl/ca.json -bare /cfssl/ca
+docker run --rm -v "$(pwd)":/cfssl --entrypoint cfssljson cfssl:experiments -f /cfssl/ca.json -bare /cfssl/ca
 ```
-7) Run CFSSL service:
-```
-docker run -d --name cfssl --network host -v "$(pwd)"/cfssl-experiments/:/cfssl cfssl:experiments serve -ca /cfssl/ca.pem -ca-key /cfssl/ca-key.pem -config /cfssl/configuration/ca/ca_auth.json -address {YOUR CFSSL HOST IP} -db-config /cfssl/configuration/ca/postgres.json
-```
+
 
 ##### OCSP service
 
-
-Generate certificate for OCSP service:
-
-
-
-
-
-
-
-
-
-
-Apply a patch: `git apply patches/revoke_ocsp.patch`
-
-1) To run OCSP service:
+7) Generate certificate for OCSP service:
 ```
-cfssl ocspserve -db-config configuration/ca/postgres.json -port 8889 -address localhost -loglevel=0
+docker run --rm -v "$(pwd)":/cfssl cfssl:experiments gencert -loglevel=2 -ca /cfssl/ca.pem -ca-key /cfssl/ca-key.pem /cfssl/configuration/ocsp/ocsp_subj.json > ocsp.json
+docker run --rm -v "$(pwd)":/cfssl --entrypoint cfssljson cfssl:experiments -f /cfssl/ocsp.json -bare /cfssl/ocsp
 ```
 
-2) Set of steps to revoke certificate:
+8) Run CFSSL service:
+```
+docker run -d --name cfssl --network host -v "$(pwd)":/cfssl cfssl:experiments serve -loglevel=0 -ca /cfssl/ca.pem -ca-key /cfssl/ca-key.pem -config /cfssl/configuration/ca/ca_auth.json -address 142.93.46.4 -db-config /cfssl/configuration/migration/postgres.json -responder /cfssl/ocsp.pem -responder-key /cfssl/ocsp-key.pem
+```
+
+9) Run OCSP service:
+```
+docker run -d --name ocsp --network host -v "$(pwd)":/cfssl cfssl:experiments ocspserve -loglevel=0 -address 142.93.46.4 -port 8889 -db-config /cfssl/configuration/migration/postgres.json
+```
+
+10) Test connection from toy server:
+```
+go run transport/example/maserver/server.go -f transport/example/maserver/server_auth_config.json
+```
+
+11) Refresh ocsp responces:
+```
+docker run --rm --network host -v "$(pwd)":/cfssl cfssl:experiments ocsprefresh -loglevel=0 -db-config /cfssl/configuration/migration/postgres.json -ca /cfssl/ca.pem -responder /cfssl/ocsp.pem -responder-key /cfssl/ocsp-key.pem
+```
+
+BONUS - add to crontab:
+```
+crontab -e
+* * * * *  docker run --rm --network host -v /root/cfssl-experiments:/cfssl cfssl:experiments ocsprefresh -loglevel=0 -db-config /cfssl/configuration/migration/postgres.json -ca /cfssl/ca.pem -responder /cfssl/ocsp.pem -responder-key /cfssl/ocsp-key.pem
+```
+
+12) Test connection from a toy client:
+```
+go run transport/example/maclient/client.go -f transport/example/maclient/client_auth_config.json
+```
+
+Set of steps to revoke certificate:
 
 - get serial number and authority_key_id of the certificate (if you have access to .pem):
 ```
@@ -84,6 +99,22 @@ curl -d '{"serial": "643283264116739598736176251779770164305825300516 < in decim
 ```
 cfssl ocsprefresh -loglevel 0 -db-config configuration/ca/postgres.json -ca root_ca.pem -responder ocsp.pem -responder-key ocsp-key.pem
 ```
+
+Reasons of revocations:
+
+```
+    unspecified (0)
+    keyCompromise (1)
+    cACompromise (2)
+    affiliationChanged (3)
+    superseded (4)
+    cessationOfOperation (5)
+    certificateHold (6)
+    removeFromCRL (8)
+    privilegeWithdrawn (9)
+    aACompromise (10)
+```
+
 
 ##### On own laptop for hardware-baked Root CA
 
@@ -139,3 +170,88 @@ Additional resources:
 1) OpenSC and pkcs11-tool (https://github.com/OpenSC/OpenSC)
 2) CFSSL community discussion on PKCS#11 (1) (https://github.com/cloudflare/cfssl/issues/563)
 3) CFSSL community discussion on PKCS#11 (2) (https://github.com/cloudflare/cfssl/issues/247)
+
+
+#### Link certificate authorities
+Combine CA certificates from Root CA and Intermediate CA:
+```
+cat configuration/root-ca/root-ca.pem configuration/intermediate-ca/intermediate.pem > configuration/chainCA.pem
+```
+
+Verify certificate signature:
+```
+openssl verify -CAfile configuration/intermediate-ca/intermediate.pem configuration/server.pem
+```
+
+
+
+
+
+
+
+
+
+
+Bob's (security engineer) work:
+
+1) Installing CFSSL locally (for RootCA):
+```
+[on Bob's local computer]
+
+git clone https://github.com/cloudflare/cfssl & cd cfssl
+git checkout ebe01990a23a309186790f4f8402eec68028f148
+go mod tidy
+go mod vendor
+make
+make install
+cd ..
+```
+2) Create RootCA (local, hardware-based)
+- generate RootCA hardware-baked key and self-signed certificate:
+```
+[on Bob's local computer]
+
+cfssl gencert -pkcs11-module <PATH TO libeTPkcs11.so> -pkcs11-token <LABEL OF TOKEN> -pkcs11-pin <TOKEN USER PIN> -loglevel=0 -initca configuration/root-ca/root_ca_subj.json | cfssljson -bare root
+```
+
+3) Setting up remote CFSSL service (for IntermediateCA)
+
+2) Create IntermediateCA (remote)
+
+3) Create OCSP service (remote) 
+
+4) Run all services
+
+
+
+
+
+
+Alice's (software engineer) work
+
+1) Create application (client and server) that should have mutually-authenticated and encrypted communication
+
+2) Run application
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

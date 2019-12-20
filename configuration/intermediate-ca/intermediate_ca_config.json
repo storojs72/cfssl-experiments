@@ -15,10 +15,6 @@
         "auth_key": "server",
         "expiry": "1h",
         "usages": ["signing", "key encipherment", "server auth"]
-      },
-      "ocsp": {
-        "usages": ["digital signature", "ocsp signing"],
-        "expiry": "26280h"
       }
     }
   },

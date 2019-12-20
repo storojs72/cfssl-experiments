@@ -1,8 +1,8 @@
 {
-  "CN": "Root CA",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
+  "CN": "Root CA (PKCS11)",
+  "ca": {
+    "expiry": "262800h",
+    "pathlen": 2
   },
   "names": [
     {
