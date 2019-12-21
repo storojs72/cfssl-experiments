@@ -198,60 +198,115 @@ Bob's (security engineer) work:
 ```
 [on Bob's local computer]
 
+git clone https://github.com/storojs72/cfssl-experiments && cd cfssl-experiments
 git clone https://github.com/cloudflare/cfssl & cd cfssl
 git checkout ebe01990a23a309186790f4f8402eec68028f148
+git apply ../patches/gencert_pkcs11_1.patch
+git apply ../patches/gencert_pkcs11_2.patch
 go mod tidy
 go mod vendor
 make
 make install
 cd ..
 ```
-2) Create RootCA (local, hardware-based)
-- generate RootCA hardware-baked key and self-signed certificate:
+
+2) Create RootCA:
 ```
 [on Bob's local computer]
 
 cfssl gencert -pkcs11-module <PATH TO libeTPkcs11.so> -pkcs11-token <LABEL OF TOKEN> -pkcs11-pin <TOKEN USER PIN> -loglevel=0 -initca configuration/root-ca/root_ca_subj.json | cfssljson -bare root
 ```
 
-3) Setting up remote CFSSL service (for IntermediateCA)
+3) Prerequisites for remote CFSSL service (for IntermediateCA):
+```
+[on remote host for IntermediateCA]
 
-2) Create IntermediateCA (remote)
+apt update
+apt install docker.io
+systemctl start docker
+systemctl enable docker
 
-3) Create OCSP service (remote) 
+git clone https://github.com/storojs72/cfssl-experiments && cd cfssl-experiments
 
-4) Run all services
+docker pull postgres:latest
+docker run -p 5432:5432 -e POSTGRES_USER=cfssl -e POSTGRES_PASSWORD=cfssl --name postgres -d postgres:latest
+
+docker build -t cfssl:experiments .
+docker run --rm --network host --entrypoint goose cfssl:experiments -path certdb/pg/ -env cfssl-experiments up
+```
+
+4) Create IntermediateCA:
+```
+[on remote host for IntermediateCA]
+
+docker run --rm --name cfssl -v "$(pwd)":/cfssl cfssl:experiments genkey -loglevel=2 /cfssl/configuration/intermediate-ca/intermediate_ca_subj.json > intermediate.json
+docker run --rm -v "$(pwd)":/cfssl --entrypoint cfssljson cfssl:experiments -f /cfssl/ca.json -bare /cfssl/ca
+
+[on Bob's local computer]
+
+scp root@142.93.46.4:/root/cfssl-experiments/intermediate.csr intermediate.csr
+cfssl sign -pkcs11-module /usr/lib/libeTPkcs11.so -pkcs11-token cfssl -pkcs11-pin 'trian0n' -ca root.pem -csr intermediate.csr -loglevel=0 -config configuration/root-ca/root_ca_config.json -profile intermediate configuration/intermediate-ca/intermediate_ca_subj.json | cfssljson -bare intermediate
+```
+
+5) Create OCSP service:
+```
+[on remote host for IntermediateCA]
+
+docker run --rm -v "$(pwd)":/cfssl cfssl:experiments gencert -loglevel=2 -ca /cfssl/intermediate.pem -ca-key /cfssl/intermediate-key.pem /cfssl/configuration/ocsp/ocsp_subj.json > ocsp.json
+docker run --rm -v "$(pwd)":/cfssl --entrypoint cfssljson cfssl:experiments -f /cfssl/ocsp.json -bare /cfssl/ocsp
+```
+
+6) Run IntermediateCA service:
+```
+[on remote host for IntermediateCA]
+
+docker run -d --name cfssl --network host -v "$(pwd)":/cfssl cfssl:experiments serve -loglevel=0 -ca /cfssl/intermediate.pem -ca-key /cfssl/intermediate-key.pem -config /cfssl/configuration/intermediate-ca/intermediate_ca_config.json -address 142.93.46.4 -db-config /cfssl/configuration/migration/postgres.json -responder /cfssl/ocsp.pem -responder-key /cfssl/ocsp-key.pem
+```
+
+7) Run OCSP service:
+```
+[on remote host for IntermediateCA]
+
+docker run -d --name ocsp --network host -v "$(pwd)":/cfssl cfssl:experiments ocspserve -loglevel=0 -address 142.93.46.4 -port 8889 -db-config /cfssl/configuration/migration/postgres.json
+```
+
+8) Set OCSP responces autoupdate:
+
+```
+[on remote host for IntermediateCA]
+
+crontab -e
+* * * * *  docker run --rm --network host -v /root/cfssl-experiments:/cfssl cfssl:experiments ocsprefresh -loglevel=0 -db-config /cfssl/configuration/migration/postgres.json -ca /cfssl/intermediate.pem -responder /cfssl/ocsp.pem -responder-key /cfssl/ocsp-key.pem
+```
+
+8) Be ready to provide trusted chain of certificates:
+```
+[on Bob's local computer]
+
+cat root.pem intermediate.pem > chainCA.pem
+```
 
 
+Alice's (software engineer) work:
 
+1) Create application (client and server) that should have mutually-authenticated and encrypted communication. 
+For this purpose we will use toy example (written on Go) of client and server provided with CFSSL
+```
+git clone https://github.com/storojs72/cfssl-experiments && cd cfssl-experiments
+git clone https://github.com/cloudflare/cfssl & cd cfssl
+git checkout ebe01990a23a309186790f4f8402eec68028f148
+git apply ../patches/revoke_ocsp.patch
+cd ..
+```
 
+2) Ask Bob for API authentication keys ("auth-key") for server and client and trusted chain of certificates file ("source") for client. Put them into `application/server_auth_config.json` and `application/client_auth_config.json`
 
+3) Run toy server:
+```
+go run cfssl/transport/example/maserver/server.go -f configuration/application/server_auth_config.json
+```
 
-Alice's (software engineer) work
-
-1) Create application (client and server) that should have mutually-authenticated and encrypted communication
-
-2) Run application
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+4) Run toy client:
+```
+go run cfssl/transport/example/maserver/server.go -f configuration/application/server_auth_config.json
+```

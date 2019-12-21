@@ -1,0 +1,21 @@
+diff --git a/cli/ocspserve/ocspserve.go b/cli/ocspserve/ocspserve.go
+index 737a0f0..74d88a2 100644
+--- a/cli/ocspserve/ocspserve.go
++++ b/cli/ocspserve/ocspserve.go
+@@ -50,12 +50,12 @@ func ocspServerMain(args []string, c cli.Config) error {
+ 		)
+ 	}
+ 
+-	log.Info("Registering OCSP responder handler")
+-	http.Handle(c.Path, ocsp.NewResponder(src, nil))
+-
++	responder := ocsp.NewResponder(src, nil)
+ 	addr := fmt.Sprintf("%s:%d", c.Address, c.Port)
+ 	log.Info("Now listening on ", addr)
+-	return http.ListenAndServe(addr, nil)
++	return http.ListenAndServe(addr, http.HandlerFunc(func (w http.ResponseWriter, req *http.Request) {
++		responder.ServeHTTP(w, req)
++	}))
+ }
+ 
+ // Command assembles the definition of Command 'ocspserve'
