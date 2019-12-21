@@ -83,6 +83,7 @@ index 467dfe9..07d9a19 100644
  	ocspURLs := leaf.OCSPServer
  	if len(ocspURLs) == 0 {
  		// OCSP not enabled for this certificate.
++		log.Debug("OCSP not enabled for this certificate: ", leaf.Subject.CommonName)
  		return false, true, nil
  	}
 -
