@@ -1,0 +1,66 @@
+diff --git a/transport/example/maclient/client.go b/transport/example/maclient/client.go
+index 786a7c2..2519a36 100644
+--- a/transport/example/maclient/client.go
++++ b/transport/example/maclient/client.go
+@@ -5,6 +5,7 @@ import (
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
++	"github.com/cloudflare/cfssl/log"
+ 	"io/ioutil"
+ 
+ 	"github.com/cloudflare/cfssl/transport"
+@@ -23,6 +24,7 @@ func main() {
+ 	flag.StringVar(&addr, "a", "127.0.0.1:9876", "`address` of server")
+ 	flag.StringVar(&conf, "f", "client.json", "config `file` to use")
+ 	flag.Parse()
++	log.Level = 0
+ 
+ 	var id = new(core.Identity)
+ 	data, err := ioutil.ReadFile(conf)
+diff --git a/transport/example/maserver/server.go b/transport/example/maserver/server.go
+index 3939102..b5af0d7 100644
+--- a/transport/example/maserver/server.go
++++ b/transport/example/maserver/server.go
+@@ -5,6 +5,7 @@ import (
+ 	"flag"
+ 	"io/ioutil"
+ 	"net"
++	"strings"
+ 
+ 	"github.com/cloudflare/cfssl/log"
+ 	"github.com/cloudflare/cfssl/transport"
+@@ -21,6 +22,7 @@ func main() {
+ 	flag.StringVar(&addr, "a", "127.0.0.1:9876", "`address` of server")
+ 	flag.StringVar(&conf, "f", "server.json", "config `file` to use")
+ 	flag.Parse()
++	log.Level = 0
+ 
+ 	var id = new(core.Identity)
+ 	data, err := ioutil.ReadFile(conf)
+@@ -92,7 +94,9 @@ func serve(l net.Listener) error {
+ 	for {
+ 		conn, err := l.Accept()
+ 		if err != nil {
+-			exlib.Warn(err, "client connection failed")
++			if !strings.HasSuffix(err.Error(), "use of closed network connection") {
++				exlib.Warn(err, "client connection failed")
++			}
+ 			continue
+ 		}
+ 
+diff --git a/transport/listener.go b/transport/listener.go
+index 40e2a90..d8fcc3d 100644
+--- a/transport/listener.go
++++ b/transport/listener.go
+@@ -102,6 +102,10 @@ func (l *Listener) AutoUpdate(certUpdates chan<- time.Time, errChan chan<- error
+ 
+ 		address := l.Listener.Addr().String()
+ 		lnet := l.Listener.Addr().Network()
++		err = l.Listener.Close()
++		if err != nil {
++			log.Debugf("can't close deprecated listener %v", err)
++		}
+ 		l.Listener, err = tls.Listen(lnet, address, config)
+ 		if err != nil {
+ 			log.Debugf("immediately after getting a new certificate, the Transport is reporting errors: %v", err)
