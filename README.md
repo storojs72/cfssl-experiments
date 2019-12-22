@@ -1,6 +1,6 @@
 # cfssl-experiments
 
-![image](https://raw.githubusercontent.com/storojs72/cfssl-experiments/master/miscellaneous/cfssl-private-ca.png)
+![image](https://raw.githubusercontent.com/storojs72/cfssl-experiments/master/screenshots/cfssl-private-ca.png)
 
 This is a variant of CFSSL remote service deployment with a single Dockerfile.
 CFSSL is deployed with a local PostgreSQL database for storing issued certificates.
@@ -188,9 +188,17 @@ openssl verify -CAfile configuration/intermediate-ca/intermediate.pem configurat
 
 
 
+Backround:
 
+PKI
 
+TLS
 
+OCSP
+
+CFSSL
+
+PKCS#11
 
 Bob's (security engineer) work:
 
@@ -199,10 +207,10 @@ Bob's (security engineer) work:
 [on Bob's local computer]
 
 git clone https://github.com/storojs72/cfssl-experiments && cd cfssl-experiments
-git clone https://github.com/cloudflare/cfssl & cd cfssl
+git clone https://github.com/cloudflare/cfssl && cd cfssl
 git checkout ebe01990a23a309186790f4f8402eec68028f148
-git apply ../patches/gencert_pkcs11_1.patch
-git apply ../patches/gencert_pkcs11_2.patch
+git apply ../patches/pkcs11_1.patch
+git apply ../patches/pkcs11_2.patch
 go mod tidy
 go mod vendor
 make
@@ -214,7 +222,7 @@ cd ..
 ```
 [on Bob's local computer]
 
-cfssl gencert -pkcs11-module <PATH TO libeTPkcs11.so> -pkcs11-token <LABEL OF TOKEN> -pkcs11-pin <TOKEN USER PIN> -loglevel=0 -initca configuration/root-ca/root_ca_subj.json | cfssljson -bare root
+cfssl gencert -pkcs11-module /usr/lib/libeTPkcs11.so -pkcs11-token cfssl -pkcs11-pin 'trian0n' -loglevel=0 -initca configuration/root-ca/root-ca-subj.json | cfssljson -bare root
 ```
 
 3) Prerequisites for remote CFSSL service (for IntermediateCA):
@@ -246,6 +254,7 @@ docker run --rm -v "$(pwd)":/cfssl --entrypoint cfssljson cfssl:experiments -f /
 
 scp root@142.93.46.4:/root/cfssl-experiments/intermediate.csr intermediate.csr
 cfssl sign -pkcs11-module /usr/lib/libeTPkcs11.so -pkcs11-token cfssl -pkcs11-pin 'trian0n' -ca root.pem -csr intermediate.csr -loglevel=0 -config configuration/root-ca/root_ca_config.json -profile intermediate configuration/intermediate-ca/intermediate_ca_subj.json | cfssljson -bare intermediate
+scp intermediate.pem root@142.93.46.4:/root/cfssl-experiments/intermediate.pem
 ```
 
 5) Create OCSP service:
@@ -309,4 +318,34 @@ go run cfssl/transport/example/maserver/server.go -f configuration/application/s
 4) Run toy client:
 ```
 go run cfssl/transport/example/maserver/server.go -f configuration/application/server_auth_config.json
+```
+
+Bob is able to revoke certificates. This is a set of steps to do it:
+
+- get serial number and authority_key_id of the certificate (if you have access to .pem. Alternatively, it can be retrieved from the database):
+```
+cfssl certinfo -cert server.pem
+```
+- perform revocation:
+```
+curl -d '{"serial": "643283264116739598736176251779770164305825300516 < in decimal!!! >","authority_key_id":"2edbc16d39d1d7d07262f1e18dd16bea29310340 < in hex!!! >","reason":"superseded"}' <address of your remote CFSSL>:8888/api/v1/cfssl/revoke
+```
+- refresh ocsp table:
+```
+cfssl ocsprefresh -loglevel 0 -db-config configuration/ca/postgres.json -ca root_ca.pem -responder ocsp.pem -responder-key ocsp-key.pem
+```
+
+Reasons of revocation:
+
+```
+    unspecified (0)
+    keyCompromise (1)
+    cACompromise (2)
+    affiliationChanged (3)
+    superseded (4)
+    cessationOfOperation (5)
+    certificateHold (6)
+    removeFromCRL (8)
+    privilegeWithdrawn (9)
+    aACompromise (10)
 ```
