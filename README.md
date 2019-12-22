@@ -43,11 +43,12 @@ cd ..
 2) Create RootCA.
 
 On this step we will create root CA with hardware-baked key. Note, that it was only tested with SafeNet 5110 tokens.
-It is assumed that you have your token installed: 1) a PKCS#11 vendor library (path is `< PATH TO VENDOR LIBRARY FOR TOKEN >`) is presented (for SafeNet 5110 - `libeTPkcs11.so`. Other vendors provide own libraries as PKCS#11 implementations)
-and token is initialized with 2) identification label (`< TOKEN LABEL >`) and 3) Security Officer and User (`< USER PIN CODE >`) pin-codes.
+It is assumed that you have your token installed: 
 
-Pay attention on subject file `configuration/root-ca/root-ca-subj.json` for our root CA. Most fields are rather self-explanatory.
-`expiry` field specifies how long time the self-signed ceritificate will be valid
+- a PKCS#11 vendor library (path is `< PATH TO VENDOR LIBRARY FOR TOKEN >`) is presented;
+- token is initialized with identification label (`< TOKEN LABEL >`) and User pin-code (`< USER PIN CODE >`).
+
+Pay attention on subject file `configuration/root-ca/root-ca-subj.json` for our root CA. Most fields are rather self-explanatory. `expiry` field specifies how long time the self-signed ceritificate will be valid, while `pathlen` specifies the depth of trusted certificate chain.
 
 ```
 [on Bob's local computer]
