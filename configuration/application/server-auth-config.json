@@ -9,7 +9,7 @@
 	},
     "profiles": {
 		"paths": {
-			"private_key": "server-key.pem",
+			"private_key": "server.key",
 			"certificate": "server.pem"
 		},
 		"cfssl": {
