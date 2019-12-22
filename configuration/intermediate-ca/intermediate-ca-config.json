@@ -1,8 +1,8 @@
 {
   "signing": {
     "default": {
-      "ocsp_url": "http://localhost:8889",
-      "issuer_urls": ["http://localhost:8888/api/v1/cfssl/info"],
+      "ocsp_url": "http://< ADDRESS OF REMOTE CFSSL >:8889",
+      "issuer_urls": ["http://< ADDRESS OF REMOTE CFSSL >:8888/api/v1/cfssl/info"],
       "expiry": "8760h"
     },
     "profiles": {
@@ -21,11 +21,11 @@
 
   "auth_keys": {
     "server": {
-      "key": "000102030405060708090a0b0c0d0e0f",
+      "key": "< HEX API KEY FOR SERVER >",
       "type": "standard"
     },
     "client": {
-      "key": "52abb3ac91971bb72bce17e7a289cd04476490b19e0d8eb7810dc42d4ac16c41",
+      "key": "< HEX API KEY FOR CLIENT >",
       "type": "standard"
     }
   }

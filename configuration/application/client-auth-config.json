@@ -14,9 +14,9 @@
 		},
 		"cfssl": {
 	    	"profile": "client",
-	    	"remote": "http://142.93.46.4:8888",
+			"remote": "http://< ADDRESS OF REMOTE CFSSL >:8888",
 	    	"auth-type": "standard",
-	    	"auth-key": "52abb3ac91971bb72bce17e7a289cd04476490b19e0d8eb7810dc42d4ac16c41"
+			"auth-key": "< HEX API KEY FOR CLIENT  >"
 		}
     },
     "roots": [
